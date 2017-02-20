@@ -17,10 +17,12 @@
 //  <http://www.gnu.org/licenses/>.
 //
 
-#include <Arduino.h>
 #include <string.h>
+#ifdef ESP8266
 #include <ESP8266WiFi.h>
-#include <ESP8266HTTPClient.h>
+#else
+#include "WiFi.h"
+#endif
 #include "EspProwl.h"
 
 #define PROWL_API_HOST "http://api.prowlapp.com"
@@ -37,11 +39,12 @@ void EspProwlClass::begin() {
 
 void EspProwlClass::begin(DeliveryMechanism deliveryMechanism) {
 
+/*
   if (deliveryMechanism == PROWL) {
     notificationServiceHost = PROWL_API_HOST;
     notificationServiceUrlPath = PROWL_PUSH_PATH_URI;
   }
-/*
+
   if (EspProwl_DEBUG) {
     if (ret == 1) {
       Serial.print("The IP address of ");
@@ -75,24 +78,30 @@ int EspProwlClass::push(char *eventStr, char *messageStr, int priority) {
     Serial.println(messageStr);
     Serial.println(priority);
   }
+  
+  int result;
   char priorityStr[5];
   sprintf(priorityStr, "%d", priority);
-  String notifSHSUP;
-  notifSHSUP = (String) notificationServiceHost + (String) notificationServiceUrlPath;
-
-  HTTPClient client;
-  Serial.println(notifSHSUP);
-
-  client.begin( notifSHSUP );
-  client.addHeader("Content-Type", "application/x-www-form-urlencoded");
 
   String push_arguments;
-  push_arguments = "apikey="+ (String) apiKey+"&application="+ (String) applicationName+"&event="+ (String) eventStr +"&description="+ (String) messageStr+ "&priority="+ (String) priorityStr;
+  push_arguments = "apikey="+ (String) apiKey ;
+  push_arguments += "&application="+ (String) applicationName ;
+  push_arguments += "&event="+ (String) eventStr ;
+  push_arguments += "&description="+ (String) messageStr ;
+  push_arguments += "&priority="+ (String) priorityStr ;
 
-    if (EspProwl_DEBUG) {
-      Serial.println(push_arguments);
-    }
+  if (EspProwl_DEBUG) {
+    Serial.println(push_arguments);
+  }
 
+  /* #ifdef ESP8266
+  String notifSHSUP = (String) notificationServiceHost + (String) notificationServiceUrlPath;
+  Serial.println(notifSHSUP);
+
+  HTTPClient client;
+  client.begin( notifSHSUP );
+  client.addHeader("Content-Type", "application/x-www-form-urlencoded");
+  
   int result = client.POST(push_arguments);
 
   if (result==HTTP_CODE_OK) {
@@ -106,6 +115,59 @@ int EspProwlClass::push(char *eventStr, char *messageStr, int priority) {
       Serial.println("failed to connect");
     }
   }
+  #else*/
+
+  WiFiClient client;
+  result = 0;
+  if (client.connect("api.prowlapp.com", 80)) {
+    client.println("POST /publicapi/add HTTP/1.1");
+    client.println("Host: api.prowlapp.com" );
+    client.println("Cache-Control: no-cache");
+    client.println("Content-Type: application/x-www-form-urlencoded");
+    client.print("Content-Length: ");
+    client.println(push_arguments.length());
+    client.println();
+    client.println(push_arguments);
+
+    int incr=0;
+    char response_buffer[255];
+    char result_buffer[16];
+
+    long interval = 5000;
+    unsigned long currentMillis = millis(), previousMillis = millis();
+
+    while(!client.available()){
+      if( (currentMillis - previousMillis) > interval ) {
+        Serial.println("Timeout");
+        client.stop();
+        return result=-1;
+      }
+      currentMillis = millis();
+    }
+
+    while (client.connected())
+    {
+      if ( client.available() )
+      {
+        char str=client.read();
+        response_buffer[incr++]=str;
+        if (incr>15) {break;}
+      }
+    }
+
+    response_buffer[incr]=0;
+    strncpy(result_buffer, &response_buffer[9], 3);
+    result_buffer[3] = '\0';
+    result = atoi(result_buffer);
+
+    if (EspProwl_DEBUG) {
+      Serial.println("response: ");
+      Serial.println(result);
+    }
+  }
+
+  //#endif
+  
   if (result==200) {
     if (EspProwl_DEBUG) {
       Serial.println("data uploaded");
