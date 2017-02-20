@@ -151,7 +151,10 @@ int EspProwlClass::push(char *eventStr, char *messageStr, int priority) {
       {
         char str=client.read();
         response_buffer[incr++]=str;
-        if (incr>15) {break;}
+        if (incr>15) {
+          client.stop();
+          break;
+        }
       }
     }
 
