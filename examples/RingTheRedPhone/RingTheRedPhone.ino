@@ -19,8 +19,11 @@
 
 // Sends a push notification to your iOS device via Prowl
 
+#ifdef ESP8266
 #include <ESP8266WiFi.h>
-#include <ESP8266HTTPClient.h>
+#else
+#include <WiFi.h>
+#endif
 #include <EspProwl.h>
 
 const char* WIFI_SSID =  "SSID";
