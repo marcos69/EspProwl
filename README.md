@@ -1,5 +1,6 @@
 # EspProwl
-Esp8266 to IOS Prowl notification service
+
+Esp8266 or ESP32 to IOS Prowl notification service
 
 Sends a push notification to your iOS device via Prowl.
 
